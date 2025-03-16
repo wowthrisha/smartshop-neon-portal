@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import Features from '@/components/Features';
@@ -26,12 +26,14 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-kartify-black">
       <Navbar />
-      <Hero />
-      <Features />
-      <ContactSection />
-      <Footer />
+      <Suspense fallback={<div className="min-h-screen bg-kartify-black flex items-center justify-center text-white">Loading...</div>}>
+        <Hero />
+        <Features />
+        <ContactSection />
+        <Footer />
+      </Suspense>
     </div>
   );
 };

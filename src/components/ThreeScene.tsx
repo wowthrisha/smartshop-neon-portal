@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { useThree, Canvas, useFrame } from '@react-three/fiber';
 import { Box, Torus, Sphere, OrbitControls } from '@react-three/drei';
@@ -151,9 +151,47 @@ const Scene = () => {
 
 // The exported component that includes the Canvas provider
 const ThreeScene: React.FC = () => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // Handle WebGL context loss
+    const handleContextLost = () => {
+      console.log('WebGL context lost, attempting to restore...');
+    };
+    
+    // Handle window resize for better performance
+    const handleResize = () => {
+      // Force a re-render on resize to ensure canvas fits correctly
+      setMounted(false);
+      setTimeout(() => setMounted(true), 100);
+    };
+    
+    window.addEventListener('webglcontextlost', handleContextLost);
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('webglcontextlost', handleContextLost);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  if (!mounted) return <div className="h-full w-full bg-kartify-black" />;
+
   return (
     <div className="h-full w-full">
-      <Canvas shadows>
+      <Canvas 
+        shadows 
+        gl={{ 
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+          stencil: false,
+          depth: true
+        }}
+        dpr={[1, 2]} // Limit pixel ratio for better performance
+      >
         <Scene />
       </Canvas>
     </div>
