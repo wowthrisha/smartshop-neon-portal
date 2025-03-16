@@ -2,11 +2,18 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Box, Sphere, OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// The individual floating object (box, sphere, etc.)
-const FloatingObject = ({ 
+// The individual floating object component
+const FloatingObject: React.FC<{
+  position: [number, number, number];
+  color: string;
+  scale?: number;
+  rotationSpeed?: number;
+  floatSpeed?: number;
+  delay?: number;
+}> = ({ 
   position, 
   color, 
   scale = 1, 
@@ -14,7 +21,7 @@ const FloatingObject = ({
   floatSpeed = 0.005,
   delay = 0
 }) => {
-  const mesh = useRef();
+  const mesh = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
     if (!mesh.current) return;
@@ -43,7 +50,7 @@ const FloatingObject = ({
 };
 
 // Grid of dots component
-const GridDots = () => {
+const GridDots: React.FC = () => {
   const gridSize = 20;
   const spacing = 1;
   const dots = [];
@@ -51,13 +58,13 @@ const GridDots = () => {
   for (let x = -gridSize / 2; x <= gridSize / 2; x += spacing) {
     for (let z = -gridSize / 2; z <= gridSize / 2; z += spacing) {
       dots.push(
-        <Sphere
+        <mesh
           key={`${x}-${z}`}
-          args={[0.02, 8, 8]}
           position={[x, -1.5, z]}
         >
+          <sphereGeometry args={[0.02, 8, 8]} />
           <meshBasicMaterial color="#004c54" transparent opacity={0.7} />
-        </Sphere>
+        </mesh>
       );
     }
   }
@@ -66,7 +73,12 @@ const GridDots = () => {
 };
 
 // Neon Ring component
-const NeonRing = ({ 
+const NeonRing: React.FC<{
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  color?: string;
+  scale?: number;
+}> = ({ 
   position = [0, 0, 0], 
   rotation = [0, 0, 0], 
   color = "#00f3ff", 
@@ -88,7 +100,7 @@ const NeonRing = ({
 };
 
 // The main scene component with camera, lights, and objects
-const Scene = () => {
+const Scene: React.FC = () => {
   const isMobile = useIsMobile();
   const { camera } = useThree();
   
@@ -109,9 +121,20 @@ const Scene = () => {
       <GridDots />
       
       {/* Neon rings */}
-      <NeonRing rotation={[Math.PI / 2, 0, 0]} scale={scale} />
-      <NeonRing rotation={[Math.PI / 3, Math.PI / 4, 0]} color="#9800fc" position={[0, 0, 0]} scale={scale * 1.2} />
-      <NeonRing rotation={[Math.PI / 4, Math.PI / 3, 0]} color="#ff00c8" position={[0, 0, 0]} scale={scale * 1.4} />
+      <NeonRing 
+        rotation={[Math.PI / 2, 0, 0]} 
+        scale={scale} 
+      />
+      <NeonRing 
+        rotation={[Math.PI / 3, Math.PI / 4, 0]} 
+        color="#9800fc" 
+        scale={scale * 1.2} 
+      />
+      <NeonRing 
+        rotation={[Math.PI / 4, Math.PI / 3, 0]} 
+        color="#ff00c8" 
+        scale={scale * 1.4} 
+      />
       
       {/* Floating objects */}
       <FloatingObject position={[-2, 0.5, -1]} color="#00f3ff" scale={scale * 0.5} delay={0} />
@@ -133,27 +156,32 @@ const Scene = () => {
 };
 
 // Error boundary for handling Three.js errors
-class ThreeErrorBoundary extends React.Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ThreeErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: React.ErrorInfo): void {
     console.error("Three.js error:", error, info);
   }
 
-  render() {
+  render(): React.ReactNode {
     if (this.state.hasError) {
-      return (
-        <div className="h-full w-full bg-kartify-black flex items-center justify-center text-white">
-          <p>Something went wrong with the 3D scene. Please refresh the page.</p>
-        </div>
-      );
+      return this.props.fallback;
     }
 
     return this.props.children;
@@ -161,20 +189,11 @@ class ThreeErrorBoundary extends React.Component {
 }
 
 // The exported component that includes the Canvas provider
-const ThreeScene = () => {
+const ThreeScene: React.FC = () => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    
-    // Handle WebGL context loss
-    const handleContextLost = (e) => {
-      e.preventDefault();
-      console.log('WebGL context lost, attempting to restore...');
-      // Force remount after a short delay
-      setMounted(false);
-      setTimeout(() => setMounted(true), 500);
-    };
     
     // Handle window resize for better performance
     const handleResize = () => {
@@ -183,11 +202,9 @@ const ThreeScene = () => {
       setTimeout(() => setMounted(true), 100);
     };
     
-    window.addEventListener('webglcontextlost', handleContextLost, false);
     window.addEventListener('resize', handleResize);
     
     return () => {
-      window.removeEventListener('webglcontextlost', handleContextLost);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
@@ -196,7 +213,11 @@ const ThreeScene = () => {
 
   return (
     <div className="h-full w-full">
-      <ThreeErrorBoundary>
+      <ThreeErrorBoundary fallback={
+        <div className="h-full w-full bg-kartify-black flex items-center justify-center text-white">
+          <p>Something went wrong with the 3D scene. Please refresh the page.</p>
+        </div>
+      }>
         <Canvas 
           shadows 
           gl={{ 
@@ -206,7 +227,7 @@ const ThreeScene = () => {
             failIfMajorPerformanceCaveat: false,
             preserveDrawingBuffer: true
           }}
-          dpr={[1, 1.5]} // Lower pixel ratio for better performance
+          dpr={[0.5, 1]} // Lower pixel ratio for better performance
           onCreated={({ gl }) => {
             gl.setClearColor(0x000000, 0);
           }}
