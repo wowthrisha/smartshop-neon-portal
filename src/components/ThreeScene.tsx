@@ -1,18 +1,9 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { useThree, Canvas, useFrame } from '@react-three/fiber';
-import { Box, Torus, Sphere, OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Box, Sphere, OrbitControls } from '@react-three/drei';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-interface FloatingObjectProps {
-  position: [number, number, number];
-  color: string;
-  scale?: number;
-  rotationSpeed?: number;
-  floatSpeed?: number;
-  delay?: number;
-}
 
 // The individual floating object (box, sphere, etc.)
 const FloatingObject = ({ 
@@ -22,8 +13,8 @@ const FloatingObject = ({
   rotationSpeed = 0.01,
   floatSpeed = 0.005,
   delay = 0
-}: FloatingObjectProps) => {
-  const mesh = useRef<THREE.Mesh>(null);
+}) => {
+  const mesh = useRef();
   
   useFrame((state) => {
     if (!mesh.current) return;
@@ -74,32 +65,24 @@ const GridDots = () => {
   return <>{dots}</>;
 };
 
-interface NeonRingProps {
-  position?: [number, number, number];
-  rotation?: [number, number, number];
-  color?: string;
-  scale?: number;
-}
-
 // Neon Ring component
 const NeonRing = ({ 
   position = [0, 0, 0], 
   rotation = [0, 0, 0], 
   color = "#00f3ff", 
   scale = 1 
-}: NeonRingProps) => {
+}) => {
   return (
     <group position={position} rotation={rotation}>
-      <Torus 
-        args={[2 * scale, 0.05 * scale, 16, 100]}
-      >
+      <mesh>
+        <torusGeometry args={[2 * scale, 0.05 * scale, 16, 100]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
           emissiveIntensity={1}
           toneMapped={false}
         />
-      </Torus>
+      </mesh>
     </group>
   );
 };
@@ -149,16 +132,48 @@ const Scene = () => {
   );
 };
 
+// Error boundary for handling Three.js errors
+class ThreeErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("Three.js error:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-full w-full bg-kartify-black flex items-center justify-center text-white">
+          <p>Something went wrong with the 3D scene. Please refresh the page.</p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // The exported component that includes the Canvas provider
-const ThreeScene: React.FC = () => {
+const ThreeScene = () => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     
     // Handle WebGL context loss
-    const handleContextLost = () => {
+    const handleContextLost = (e) => {
+      e.preventDefault();
       console.log('WebGL context lost, attempting to restore...');
+      // Force remount after a short delay
+      setMounted(false);
+      setTimeout(() => setMounted(true), 500);
     };
     
     // Handle window resize for better performance
@@ -168,7 +183,7 @@ const ThreeScene: React.FC = () => {
       setTimeout(() => setMounted(true), 100);
     };
     
-    window.addEventListener('webglcontextlost', handleContextLost);
+    window.addEventListener('webglcontextlost', handleContextLost, false);
     window.addEventListener('resize', handleResize);
     
     return () => {
@@ -181,19 +196,24 @@ const ThreeScene: React.FC = () => {
 
   return (
     <div className="h-full w-full">
-      <Canvas 
-        shadows 
-        gl={{ 
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance',
-          stencil: false,
-          depth: true
-        }}
-        dpr={[1, 2]} // Limit pixel ratio for better performance
-      >
-        <Scene />
-      </Canvas>
+      <ThreeErrorBoundary>
+        <Canvas 
+          shadows 
+          gl={{ 
+            antialias: true,
+            alpha: true,
+            powerPreference: 'default',
+            failIfMajorPerformanceCaveat: false,
+            preserveDrawingBuffer: true
+          }}
+          dpr={[1, 1.5]} // Lower pixel ratio for better performance
+          onCreated={({ gl }) => {
+            gl.setClearColor(0x000000, 0);
+          }}
+        >
+          <Scene />
+        </Canvas>
+      </ThreeErrorBoundary>
     </div>
   );
 };
