@@ -74,8 +74,20 @@ const GridDots = () => {
   return <>{dots}</>;
 };
 
+interface NeonRingProps {
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  color?: string;
+  scale?: number;
+}
+
 // Neon Ring component
-const NeonRing = ({ position = [0, 0, 0], rotation = [0, 0, 0], color = "#00f3ff", scale = 1 }) => {
+const NeonRing = ({ 
+  position = [0, 0, 0], 
+  rotation = [0, 0, 0], 
+  color = "#00f3ff", 
+  scale = 1 
+}: NeonRingProps) => {
   return (
     <Torus 
       args={[2 * scale, 0.05 * scale, 16, 100]} 
