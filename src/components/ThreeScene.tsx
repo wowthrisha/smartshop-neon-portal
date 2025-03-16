@@ -89,18 +89,18 @@ const NeonRing = ({
   scale = 1 
 }: NeonRingProps) => {
   return (
-    <Torus 
-      args={[2 * scale, 0.05 * scale, 16, 100]} 
-      position={position} 
-      rotation={rotation}
-    >
-      <meshStandardMaterial
-        color={color}
-        emissive={color}
-        emissiveIntensity={1}
-        toneMapped={false}
-      />
-    </Torus>
+    <group position={position} rotation={rotation}>
+      <Torus 
+        args={[2 * scale, 0.05 * scale, 16, 100]}
+      >
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={1}
+          toneMapped={false}
+        />
+      </Torus>
+    </group>
   );
 };
 
